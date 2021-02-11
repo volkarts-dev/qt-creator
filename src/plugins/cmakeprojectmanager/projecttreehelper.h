@@ -44,6 +44,9 @@ void addCMakeVFolder(ProjectExplorer::FolderNode *base,
                      bool showInSimpleTree,
                      std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&files);
 
+std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&disableNodes(
+        std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&files);
+
 std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&removeKnownNodes(
     const QSet<Utils::FilePath> &knownFiles,
     std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&files);

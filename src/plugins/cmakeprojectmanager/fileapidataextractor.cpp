@@ -533,14 +533,14 @@ void addCompileGroups(ProjectNode *targetRoot,
                     QCoreApplication::translate("CMakeProjectManager::Internal::FileApi",
                                                 "<Build Directory>"),
                     false,
-                    std::move(buildFileNodes));
+                    disableNodes(std::move(buildFileNodes)));
     addCMakeVFolder(targetRoot,
                     Utils::FilePath(),
                     10,
                     QCoreApplication::translate("CMakeProjectManager::Internal::FileApi",
                                                 "<Other Locations>"),
                     false,
-                    std::move(otherFileNodes));
+                    disableNodes(std::move(otherFileNodes)));
 }
 
 void addTargets(const QHash<Utils::FilePath, ProjectExplorer::ProjectNode *> &cmakeListsNodes,

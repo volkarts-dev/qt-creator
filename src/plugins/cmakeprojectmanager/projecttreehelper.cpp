@@ -67,6 +67,16 @@ void addCMakeVFolder(FolderNode *base,
         fn->compress();
 }
 
+std::vector<std::unique_ptr<FileNode>> &&disableNodes(
+        std::vector<std::unique_ptr<FileNode>> &&files)
+{
+    for (auto& fileNode : files)
+    {
+        fileNode->setEnabled(false);
+    }
+    return std::move(files);
+}
+
 std::vector<std::unique_ptr<FileNode>> &&removeKnownNodes(
     const QSet<Utils::FilePath> &knownFiles, std::vector<std::unique_ptr<FileNode>> &&files)
 {
@@ -103,14 +113,14 @@ void addCMakeInputs(FolderNode *root,
                     QCoreApplication::translate("CMakeProjectManager::Internal::ProjectTreeHelper",
                                                 "<Build Directory>"),
                     false,
-                    removeKnownNodes(knownFiles, std::move(buildInputs)));
+                    disableNodes(removeKnownNodes(knownFiles, std::move(buildInputs))));
     addCMakeVFolder(cmakeVFolder.get(),
                     Utils::FilePath(),
                     10,
                     QCoreApplication::translate("CMakeProjectManager::Internal::ProjectTreeHelper",
                                                 "<Other Locations>"),
                     false,
-                    removeKnownNodes(knownFiles, std::move(rootInputs)));
+                    disableNodes(removeKnownNodes(knownFiles, std::move(rootInputs))));
 
     root->addNode(std::move(cmakeVFolder));
 }
