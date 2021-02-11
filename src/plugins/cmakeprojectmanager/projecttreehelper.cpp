@@ -38,9 +38,10 @@ namespace Internal {
 
 std::unique_ptr<FolderNode> createCMakeVFolder(const Utils::FilePath &basePath,
                                                int priority,
-                                               const QString &displayName)
+                                               const QString &displayName,
+                                               bool showInSimpleTree)
 {
-    auto newFolder = std::make_unique<VirtualFolderNode>(basePath);
+    auto newFolder = std::make_unique<CMakeVirtualFolderNode>(basePath, showInSimpleTree);
     newFolder->setPriority(priority);
     newFolder->setDisplayName(displayName);
     return newFolder;
@@ -50,13 +51,14 @@ void addCMakeVFolder(FolderNode *base,
                      const Utils::FilePath &basePath,
                      int priority,
                      const QString &displayName,
+                     bool showInSimpleTree,
                      std::vector<std::unique_ptr<FileNode>> &&files)
 {
     if (files.size() == 0)
         return;
     FolderNode *folder = base;
     if (!displayName.isEmpty()) {
-        auto newFolder = createCMakeVFolder(basePath, priority, displayName);
+        auto newFolder = createCMakeVFolder(basePath, priority, displayName, showInSimpleTree);
         folder = newFolder.get();
         base->addNode(std::move(newFolder));
     }
@@ -93,18 +95,21 @@ void addCMakeInputs(FolderNode *root,
                     sourceDir,
                     1000,
                     QString(),
+                    true,
                     removeKnownNodes(knownFiles, std::move(sourceInputs)));
     addCMakeVFolder(cmakeVFolder.get(),
                     buildDir,
                     100,
                     QCoreApplication::translate("CMakeProjectManager::Internal::ProjectTreeHelper",
                                                 "<Build Directory>"),
+                    false,
                     removeKnownNodes(knownFiles, std::move(buildInputs)));
     addCMakeVFolder(cmakeVFolder.get(),
                     Utils::FilePath(),
                     10,
                     QCoreApplication::translate("CMakeProjectManager::Internal::ProjectTreeHelper",
                                                 "<Other Locations>"),
+                    false,
                     removeKnownNodes(knownFiles, std::move(rootInputs)));
 
     root->addNode(std::move(cmakeVFolder));

@@ -443,7 +443,7 @@ FolderNode *createSourceGroupNode(const QString &sourceGroupName,
                                                             });
 
             if (!existingNode) {
-                auto node = createCMakeVFolder(sourceDirectory, Node::DefaultFolderPriority + 5, p);
+                auto node = createCMakeVFolder(sourceDirectory, Node::DefaultFolderPriority + 5, p, false);
                 node->setListInProject(false);
                 node->setIcon(QIcon::fromTheme("edit-copy", ::Utils::Icons::COPY.icon()));
 
@@ -532,12 +532,14 @@ void addCompileGroups(ProjectNode *targetRoot,
                     100,
                     QCoreApplication::translate("CMakeProjectManager::Internal::FileApi",
                                                 "<Build Directory>"),
+                    false,
                     std::move(buildFileNodes));
     addCMakeVFolder(targetRoot,
                     Utils::FilePath(),
                     10,
                     QCoreApplication::translate("CMakeProjectManager::Internal::FileApi",
                                                 "<Other Locations>"),
+                    false,
                     std::move(otherFileNodes));
 }
 

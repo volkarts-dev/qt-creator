@@ -56,11 +56,6 @@ CMakeListsNode::CMakeListsNode(const Utils::FilePath &cmakeListPath) :
     setListInProject(false);
 }
 
-bool CMakeListsNode::showInSimpleTree() const
-{
-    return false;
-}
-
 Utils::optional<Utils::FilePath> CMakeListsNode::visibleAfterAddFileAction() const
 {
     return filePath().pathAppended("CMakeLists.txt");
@@ -182,6 +177,17 @@ void CMakeTargetNode::setTargetInformation(const QList<Utils::FilePath> &artifac
         m_tooltip += QCoreApplication::translate("CMakeTargetNode", "Build artifacts:") + "<br>"
                 + tmp.join("<br>");
     }
+}
+
+CMakeVirtualFolderNode::CMakeVirtualFolderNode(const Utils::FilePath &folderPath, bool showInSimpleTree) :
+    VirtualFolderNode(folderPath),
+    m_shownSimpleTree(showInSimpleTree)
+{
+}
+
+bool CMakeVirtualFolderNode::showInSimpleTree() const
+{
+    return m_shownSimpleTree;
 }
 
 } // Internal

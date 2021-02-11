@@ -43,7 +43,6 @@ class CMakeListsNode : public ProjectExplorer::ProjectNode
 public:
     CMakeListsNode(const Utils::FilePath &cmakeListPath);
 
-    bool showInSimpleTree() const final;
     Utils::optional<Utils::FilePath> visibleAfterAddFileAction() const override;
 };
 
@@ -79,6 +78,18 @@ private:
     Utils::FilePath m_buildDirectory;
     CMakeConfig m_config;
 };
+
+class CMakeVirtualFolderNode : public ProjectExplorer::VirtualFolderNode
+{
+public:
+    explicit CMakeVirtualFolderNode(const Utils::FilePath &folderPath, bool shownSimpleTree = true);
+
+    bool showInSimpleTree() const override;
+
+private:
+    bool m_shownSimpleTree;
+};
+
 
 } // namespace Internal
 } // namespace CMakeProjectManager

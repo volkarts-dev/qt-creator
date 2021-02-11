@@ -34,12 +34,14 @@ namespace Internal {
 
 std::unique_ptr<ProjectExplorer::FolderNode> createCMakeVFolder(const Utils::FilePath &basePath,
                                                                 int priority,
-                                                                const QString &displayName);
+                                                                const QString &displayName,
+                                                                bool showInSimpleTree);
 
 void addCMakeVFolder(ProjectExplorer::FolderNode *base,
                      const Utils::FilePath &basePath,
                      int priority,
                      const QString &displayName,
+                     bool showInSimpleTree,
                      std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&files);
 
 std::vector<std::unique_ptr<ProjectExplorer::FileNode>> &&removeKnownNodes(
