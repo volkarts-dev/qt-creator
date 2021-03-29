@@ -45,12 +45,16 @@ public:
     void fromSettings(QSettings *settings);
     void toSettings(QSettings *settings) const;
 
+    void setShowSourceGroups(bool showSourceGroups) { m_showSourceGroups = showSourceGroups; }
+    bool showSourceGroups() const { return m_showSourceGroups; }
+
     void setAfterAddFileSetting(AfterAddFileAction settings) { m_afterAddFileToProjectSetting = settings; }
     AfterAddFileAction afterAddFileSetting() const { return m_afterAddFileToProjectSetting; }
 
     Utils::FilePath ninjaPath() const { return m_ninjaPath; }
 
 private:
+    bool m_showSourceGroups;
     AfterAddFileAction m_afterAddFileToProjectSetting;
     Utils::FilePath m_ninjaPath;
 };

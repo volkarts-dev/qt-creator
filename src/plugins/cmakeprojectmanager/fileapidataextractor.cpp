@@ -25,6 +25,8 @@
 
 #include "fileapidataextractor.h"
 
+#include "cmakeprojectplugin.h"
+#include "cmakespecificsettings.h"
 #include "fileapiparser.h"
 #include "projecttreehelper.h"
 
@@ -508,6 +510,9 @@ void addCompileGroups(ProjectNode *targetRoot,
         }
     }
 
+    CMakeSpecificSettings *settings = CMakeProjectPlugin::projectTypeSpecificSettings();
+    const bool showSourceGroups = settings->showSourceGroups();
+
     // Calculate base directory for source groups:
     for (size_t i = 0; i < sourceGroupFileNodes.size(); ++i) {
         std::vector<std::unique_ptr<FileNode>> &current = sourceGroupFileNodes[i];
@@ -521,10 +526,18 @@ void addCompileGroups(ProjectNode *targetRoot,
             }
         }
 
-        FolderNode *insertNode = createSourceGroupNode(td.sourceGroups[i],
-                                                       baseDirectory,
-                                                       targetRoot);
-        insertNode->addNestedNodes(std::move(current), baseDirectory);
+        if (showSourceGroups)
+        {
+
+            FolderNode *insertNode = createSourceGroupNode(td.sourceGroups[i],
+                                                           baseDirectory,
+                                                           targetRoot);
+            insertNode->addNestedNodes(std::move(current), baseDirectory);
+        }
+        else
+        {
+            targetRoot->addNestedNodes(std::move(current), baseDirectory);
+        }
     }
 
     addCMakeVFolder(targetRoot,
