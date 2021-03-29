@@ -58,6 +58,8 @@ CMakeSpecificSettingWidget::CMakeSpecificSettingWidget(CMakeSpecificSettings *se
     m_ui.newFileAddedCopyToCpliSettingGroup->setId(m_ui.alwaysCopyRadio,
                                                    AfterAddFileAction::COPY_FILE_PATH);
 
+    m_ui.showSourceGroups->setChecked(settings->showSourceGroups());
+
     const AfterAddFileAction mode = settings->afterAddFileSetting();
     switch (mode) {
     case ASK_USER:
@@ -77,6 +79,7 @@ CMakeSpecificSettingWidget::CMakeSpecificSettingWidget(CMakeSpecificSettings *se
 
 void CMakeSpecificSettingWidget::apply()
 {
+    m_settings->setShowSourceGroups(m_ui.showSourceGroups->isChecked());
     int popupSetting = m_ui.newFileAddedCopyToCpliSettingGroup->checkedId();
     m_settings->setAfterAddFileSetting(popupSetting == -1 ? AfterAddFileAction::ASK_USER
                                                   : static_cast<AfterAddFileAction>(popupSetting));

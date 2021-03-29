@@ -30,6 +30,7 @@ namespace Internal {
 
 namespace {
 static const char SETTINGS_KEY[] = "CMakeSpecificSettings";
+static const char SHOW_SOURCE_GROUPS_KEY[] = "ShowSourceGroupsSetting";
 static const char AFTER_ADD_FILE_ACTION_KEY[] = "ProjectPopupSetting";
 static const char NINJA_PATH[] = "NinjaPath";
 static const char PACKAGE_MANAGER_AUTO_SETUP[] = "PackageManagerAutoSetup";
@@ -39,6 +40,9 @@ static const char ASK_RECONFIGURE_INITIAL_PARAMS[] = "AskReConfigureInitialParam
 void CMakeSpecificSettings::fromSettings(QSettings *settings)
 {
     const QString rootKey = QString(SETTINGS_KEY) + '/';
+
+    m_showSourceGroups = settings->value(rootKey + SHOW_SOURCE_GROUPS_KEY, true).toBool();
+
     m_afterAddFileToProjectSetting = static_cast<AfterAddFileAction>(
                               settings->value(rootKey + AFTER_ADD_FILE_ACTION_KEY,
                                               static_cast<int>(AfterAddFileAction::ASK_USER)).toInt());

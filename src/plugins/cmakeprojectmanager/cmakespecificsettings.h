@@ -45,6 +45,9 @@ public:
     void fromSettings(QSettings *settings);
     void toSettings(QSettings *settings) const;
 
+    void setShowSourceGroups(bool showSourceGroups) { m_showSourceGroups = showSourceGroups; }
+    bool showSourceGroups() const { return m_showSourceGroups; }
+
     void setAfterAddFileSetting(AfterAddFileAction settings) { m_afterAddFileToProjectSetting = settings; }
     AfterAddFileAction afterAddFileSetting() const { return m_afterAddFileToProjectSetting; }
 
@@ -56,6 +59,7 @@ public:
     bool askBeforeReConfigureInitialParams() const { return m_askBeforeReConfigureInitialParams; }
     void setAskBeforeReConfigureInitialParams(bool doAsk) { m_askBeforeReConfigureInitialParams = doAsk; }
 private:
+    bool m_showSourceGroups;
     AfterAddFileAction m_afterAddFileToProjectSetting;
     Utils::FilePath m_ninjaPath;
     bool m_packageManagerAutoSetup = true;
