@@ -91,8 +91,8 @@ public:
     bool fromMap(const QVariantMap &map) override;
     QVariantMap toMap() const override;
 
-    virtual bool isEnabled() const;
-    virtual QString disabledReason() const;
+    bool isEnabled() const;
+    QString disabledReason() const;
 
     virtual bool regenerateBuildFiles(Node *node);
 
@@ -110,7 +110,6 @@ public:
 
     bool isActive() const;
 
-    static void prependCompilerPathToEnvironment(Kit *k, Utils::Environment &env);
     void updateCacheAndEmitEnvironmentChanged();
 
     ProjectExplorer::BuildDirectoryAspect *buildDirectoryAspect() const;

@@ -106,7 +106,7 @@ public:
             return p->displayName();
         if (const auto t = qobject_cast<Target *>(object()))
             return t->displayName();
-        return static_cast<ProjectConfiguration *>(object())->displayName();
+        return static_cast<ProjectConfiguration *>(object())->expandedDisplayName();
 
     }
     QString displayName() const
@@ -681,7 +681,7 @@ MiniProjectTargetSelector::MiniProjectTargetSelector(QAction *targetSelectorActi
     m_summaryLabel->setContentsMargins(3, 3, 3, 3);
     m_summaryLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     QPalette pal = m_summaryLabel->palette();
-    pal.setColor(QPalette::Window, Utils::StyleHelper().baseColor());
+    pal.setColor(QPalette::Window, StyleHelper::baseColor());
     m_summaryLabel->setPalette(pal);
     m_summaryLabel->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
     m_summaryLabel->setTextInteractionFlags(m_summaryLabel->textInteractionFlags() | Qt::LinksAccessibleByMouse);
@@ -1481,7 +1481,7 @@ void MiniProjectTargetSelector::updateActionAndSummary()
                 deployConfig = dc->displayName();
 
             if (RunConfiguration *rc = target->activeRunConfiguration())
-                runConfig = rc->displayName();
+                runConfig = rc->expandedDisplayName();
 
             targetToolTipText = target->overlayIconToolTip();
             targetIcon = createCenteredIcon(target->icon(), target->overlayIcon());
@@ -1530,7 +1530,7 @@ void MiniProjectTargetSelector::updateSummary()
                                    activeTarget->activeDeployConfiguration()->displayName()));
             if (!m_listWidgets[RUN]->isVisibleTo(this) && activeTarget->activeRunConfiguration())
                 summary.append(tr("Run: <b>%1</b><br/>").arg(
-                                   activeTarget->activeRunConfiguration()->displayName()));
+                                   activeTarget->activeRunConfiguration()->expandedDisplayName()));
         } else if (startupProject->needsConfiguration()) {
             summary = tr("<style type=text/css>"
                          "a:link {color: rgb(128, 128, 255, 240);}</style>"
@@ -1554,7 +1554,7 @@ void MiniProjectTargetSelector::updateSummary()
 void MiniProjectTargetSelector::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.fillRect(rect(), Utils::StyleHelper().baseColor());
+    painter.fillRect(rect(), StyleHelper::baseColor());
     painter.setPen(creatorTheme()->color(Theme::MiniProjectTargetSelectorBorderColor));
     // draw border on top and right
     QRectF borderRect = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);

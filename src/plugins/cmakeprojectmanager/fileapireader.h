@@ -66,9 +66,15 @@ public:
     QSet<Utils::FilePath> projectFilesToWatch() const;
     QList<CMakeBuildTarget> takeBuildTargets(QString &errorMessage);
     CMakeConfig takeParsedConfiguration(QString &errorMessage);
+    QString ctestPath() const;
     std::unique_ptr<CMakeProjectNode> generateProjectTree(
-        const QList<const ProjectExplorer::FileNode *> &allFiles, QString &errorMessage);
+        const QList<const ProjectExplorer::FileNode *> &allFiles,
+        QString &errorMessage,
+        bool includeHeaderNodes);
     ProjectExplorer::RawProjectParts createRawProjectParts(QString &errorMessage);
+
+    bool isMultiConfig() const;
+    bool usesAllCapsTargets() const;
 
 signals:
     void configurationStarted() const;
@@ -83,6 +89,7 @@ private:
     void cmakeFinishedState(int code, QProcess::ExitStatus status);
 
     void replyDirectoryHasChanged(const QString &directory) const;
+    void makeBackupConfiguration(bool store);
 
     std::unique_ptr<CMakeProcess> m_cmakeProcess;
 
@@ -93,6 +100,10 @@ private:
     ProjectExplorer::RawProjectParts m_projectParts;
     std::unique_ptr<CMakeProjectNode> m_rootProjectNode;
     QSet<Utils::FilePath> m_knownHeaders;
+    QString m_ctestPath;
+    bool m_isMultiConfig = false;
+    bool m_usesAllCapsTargets = false;
+    int m_lastCMakeExitCode = 0;
 
     Utils::optional<QFuture<FileApiQtcData *>> m_future;
 

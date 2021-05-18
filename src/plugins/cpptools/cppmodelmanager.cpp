@@ -42,6 +42,7 @@
 #include "cpprefactoringchanges.h"
 #include "cpprefactoringengine.h"
 #include "cppsourceprocessor.h"
+#include "cpptoolsjsextension.h"
 #include "cpptoolsplugin.h"
 #include "cpptoolsconstants.h"
 #include "cpptoolsreuse.h"
@@ -54,6 +55,7 @@
 #include <coreplugin/documentmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/icore.h>
+#include <coreplugin/jsexpander.h>
 #include <coreplugin/progressmanager/progressmanager.h>
 #include <coreplugin/vcsmanager.h>
 #include <cplusplus/ASTPath.h>
@@ -575,6 +577,13 @@ CppModelManager *CppModelManager::instance()
     return m_instance;
 }
 
+void CppModelManager::registerJsExtension()
+{
+    Core::JsExpander::registerGlobalObject("Cpp", [this] {
+        return new CppToolsJsExtension(&d->m_locatorData);
+    });
+}
+
 void CppModelManager::initCppTools()
 {
     // Objects
@@ -721,7 +730,7 @@ void CppModelManager::ensureUpdated()
 QStringList CppModelManager::internalProjectFiles() const
 {
     QStringList files;
-    for (const ProjectInfo &pinfo : d->m_projectToProjectsInfo) {
+    for (const ProjectInfo &pinfo : qAsConst(d->m_projectToProjectsInfo)) {
         foreach (const ProjectPart::Ptr &part, pinfo.projectParts()) {
             foreach (const ProjectFile &file, part->files)
                 files += file.path;
@@ -734,7 +743,7 @@ QStringList CppModelManager::internalProjectFiles() const
 ProjectExplorer::HeaderPaths CppModelManager::internalHeaderPaths() const
 {
     ProjectExplorer::HeaderPaths headerPaths;
-    for (const ProjectInfo &pinfo : d->m_projectToProjectsInfo) {
+    for (const ProjectInfo &pinfo : qAsConst(d->m_projectToProjectsInfo)) {
         foreach (const ProjectPart::Ptr &part, pinfo.projectParts()) {
             foreach (const ProjectExplorer::HeaderPath &path, part->headerPaths) {
                 ProjectExplorer::HeaderPath hp(QDir::cleanPath(path.path), path.type);
@@ -762,7 +771,7 @@ ProjectExplorer::Macros CppModelManager::internalDefinedMacros() const
 {
     ProjectExplorer::Macros macros;
     QSet<ProjectExplorer::Macro> alreadyIn;
-    for (const ProjectInfo &pinfo : d->m_projectToProjectsInfo) {
+    for (const ProjectInfo &pinfo : qAsConst(d->m_projectToProjectsInfo)) {
         for (const ProjectPart::Ptr &part : pinfo.projectParts()) {
             addUnique(part->toolChainMacros, macros, alreadyIn);
             addUnique(part->projectMacros, macros, alreadyIn);

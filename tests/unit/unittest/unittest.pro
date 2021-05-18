@@ -66,7 +66,8 @@ SOURCES += \
     filepathview-test.cpp \
     gtest-creator-printing.cpp \
     gtest-qt-printing.cpp \
-    imagecache-test.cpp \
+    asynchronousimagecache-test.cpp \
+    synchronousimagecache-test.cpp \
     imagecachegenerator-test.cpp \
     imagecachestorage-test.cpp \
     lastchangedrowid-test.cpp \
@@ -96,7 +97,6 @@ SOURCES += \
     unittests-main.cpp \
     utf8-test.cpp \
     symbolstorage-test.cpp \
-    mocksqlitereadstatement.cpp \
     symbolquery-test.cpp \
     sqliteindex-test.cpp \
     sqlitetransaction-test.cpp \
@@ -190,6 +190,8 @@ SOURCES += \
     unsavedfiles-test.cpp \
     unsavedfile-test.cpp \
     utf8positionfromlinecolumn-test.cpp \
+    clangreferencescollector-test.cpp \
+    clangdocumentsuspenderresumer-test.cpp \
     readexporteddiagnostics-test.cpp
 
 !isEmpty(QTC_UNITTEST_BUILD_CPP_PARSER):SOURCE += \
@@ -202,11 +204,9 @@ SOURCES += \
 !isEmpty(LIBTOOLING_LIBS) {
 SOURCES += \
     gtest-llvm-printing.cpp \
-    clangdocumentsuspenderresumer-test.cpp \
     clangquerygatherer-test.cpp \
     clangqueryprojectfindfilter-test.cpp \
     clangquery-test.cpp \
-    clangreferencescollector-test.cpp \
     pchcreator-test.cpp \
     refactoringclientserverinprocess-test.cpp \
     refactoringclient-test.cpp \
@@ -274,9 +274,6 @@ HEADERS += \
     testenvironment.h \
     mocksymbolscollector.h \
     mocksymbolstorage.h \
-    mocksqlitewritestatement.h \
-    mocksqlitedatabase.h \
-    mocksqlitereadstatement.h \
     google-using-declarations.h \
     mocksymbolindexing.h \
     sqliteteststatement.h \

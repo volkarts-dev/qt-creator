@@ -29,6 +29,8 @@
 #include "fileapiparser.h"
 #include "projecttreehelper.h"
 
+#include <coreplugin/messagemanager.h>
+
 #include <projectexplorer/projectexplorer.h>
 
 #include <utils/algorithm.h>
@@ -185,19 +187,39 @@ QList<CMakeBuildTarget> FileApiReader::takeBuildTargets(QString &errorMessage){
 
 CMakeConfig FileApiReader::takeParsedConfiguration(QString &errorMessage)
 {
-    Q_UNUSED(errorMessage)
+    if (m_lastCMakeExitCode != 0)
+        errorMessage = tr("CMake returned error code: %1").arg(m_lastCMakeExitCode);
 
     CMakeConfig cache = m_cache;
     m_cache.clear();
     return cache;
 }
 
+QString FileApiReader::ctestPath() const
+{
+    // if we failed to run cmake we should not offer ctest information either
+    return m_lastCMakeExitCode == 0 ? m_ctestPath : QString();
+}
+
+bool FileApiReader::isMultiConfig() const
+{
+    return m_isMultiConfig;
+}
+
+bool FileApiReader::usesAllCapsTargets() const
+{
+    return m_usesAllCapsTargets;
+}
+
 std::unique_ptr<CMakeProjectNode> FileApiReader::generateProjectTree(
-    const QList<const FileNode *> &allFiles, QString &errorMessage)
+    const QList<const FileNode *> &allFiles, QString &errorMessage, bool includeHeaderNodes)
 {
     Q_UNUSED(errorMessage)
 
-    addHeaderNodes(m_rootProjectNode.get(), m_knownHeaders, allFiles);
+    if (includeHeaderNodes) {
+        addHeaderNodes(m_rootProjectNode.get(), m_knownHeaders, allFiles);
+    }
+    addFileSystemNodes(m_rootProjectNode.get(), allFiles);
     return std::move(m_rootProjectNode);
 }
 
@@ -230,19 +252,24 @@ void FileApiReader::endState(const QFileInfo &replyFi)
 
     const FilePath sourceDirectory = m_parameters.sourceDirectory;
     const FilePath buildDirectory = m_parameters.workDirectory;
+    const FilePath topCmakeFile = m_cmakeFiles.size() == 1 ? *m_cmakeFiles.begin() : FilePath{};
+    const QString cmakeBuildType = m_parameters.cmakeBuildType == "Build" ? "" : m_parameters.cmakeBuildType;
 
     m_lastReplyTimestamp = replyFi.lastModified();
 
     m_future = runAsync(ProjectExplorerPlugin::sharedThreadPool(),
-                        [replyFi, sourceDirectory, buildDirectory]() {
+                        [replyFi, sourceDirectory, buildDirectory, topCmakeFile, cmakeBuildType]() {
                             auto result = std::make_unique<FileApiQtcData>();
-                            FileApiData data = FileApiParser::parseData(replyFi,
-                                                                        result->errorMessage);
+                            FileApiData data = FileApiParser::parseData(replyFi, cmakeBuildType, result->errorMessage);
                             if (!result->errorMessage.isEmpty()) {
                                 qWarning() << result->errorMessage;
-                                return result.release();
+                                *result = generateFallbackData(topCmakeFile,
+                                                               sourceDirectory,
+                                                               buildDirectory,
+                                                               result->errorMessage);
+                            } else {
+                                *result = extractData(data, sourceDirectory, buildDirectory);
                             }
-                            *result = extractData(data, sourceDirectory, buildDirectory);
                             if (!result->errorMessage.isEmpty()) {
                                 qWarning() << result->errorMessage;
                             }
@@ -260,6 +287,9 @@ void FileApiReader::endState(const QFileInfo &replyFi)
         m_projectParts = std::move(value->projectParts);
         m_rootProjectNode = std::move(value->rootProjectNode);
         m_knownHeaders = std::move(value->knownHeaders);
+        m_ctestPath = std::move(value->ctestPath);
+        m_isMultiConfig = std::move(value->isMultiConfig);
+        m_usesAllCapsTargets = std::move(value->usesAllCapsTargets);
 
         if (value->errorMessage.isEmpty()) {
             emit this->dataAvailable();
@@ -267,6 +297,35 @@ void FileApiReader::endState(const QFileInfo &replyFi)
             emit this->errorOccurred(value->errorMessage);
         }
     });
+}
+
+void FileApiReader::makeBackupConfiguration(bool store)
+{
+    FilePath reply = m_parameters.buildDirectory.pathAppended(".cmake/api/v1/reply");
+    FilePath replyPrev = m_parameters.buildDirectory.pathAppended(".cmake/api/v1/reply.prev");
+    if (!store)
+        std::swap(reply, replyPrev);
+
+    if (reply.exists()) {
+        if (replyPrev.exists())
+            FileUtils::removeRecursively(replyPrev);
+        QDir dir;
+        if (!dir.rename(reply.toString(), replyPrev.toString()))
+            Core::MessageManager::writeFlashing(tr("Failed to rename %1 to %2.")
+                                                .arg(reply.toString(), replyPrev.toString()));
+
+    }
+
+    FilePath cmakeCacheTxt = m_parameters.buildDirectory.pathAppended("CMakeCache.txt");
+    FilePath cmakeCacheTxtPrev = m_parameters.buildDirectory.pathAppended("CMakeCache.txt.prev");
+    if (!store)
+        std::swap(cmakeCacheTxt, cmakeCacheTxtPrev);
+
+    if (cmakeCacheTxt.exists())
+        if (!FileUtils::copyIfDifferent(cmakeCacheTxt, cmakeCacheTxtPrev))
+            Core::MessageManager::writeFlashing(tr("Failed to copy %1 to %2.")
+                                                .arg(cmakeCacheTxt.toString(), cmakeCacheTxtPrev.toString()));
+
 }
 
 void FileApiReader::startCMakeState(const QStringList &configurationArguments)
@@ -279,6 +338,7 @@ void FileApiReader::startCMakeState(const QStringList &configurationArguments)
     connect(m_cmakeProcess.get(), &CMakeProcess::finished, this, &FileApiReader::cmakeFinishedState);
 
     qCDebug(cmakeFileApiMode) << ">>>>>> Running cmake with arguments:" << configurationArguments;
+    makeBackupConfiguration(true);
     m_cmakeProcess->run(m_parameters, configurationArguments);
 }
 
@@ -289,7 +349,11 @@ void FileApiReader::cmakeFinishedState(int code, QProcess::ExitStatus status)
     Q_UNUSED(code)
     Q_UNUSED(status)
 
+    m_lastCMakeExitCode = m_cmakeProcess->lastExitCode();
     m_cmakeProcess.release()->deleteLater();
+
+    if (m_lastCMakeExitCode != 0)
+        makeBackupConfiguration(false);
 
     endState(FileApiParser::scanForCMakeReplyFile(m_parameters.workDirectory));
 }

@@ -60,6 +60,7 @@
 #include <coreplugin/messagebox.h>
 #include <coreplugin/modemanager.h>
 #include <coreplugin/editormanager/editormanager.h>
+#include <extensionsystem/pluginmanager.h>
 #include <extensionsystem/pluginspec.h>
 #include <qmljs/qmljsmodelmanagerinterface.h>
 #include <projectexplorer/projectexplorerconstants.h>
@@ -69,6 +70,7 @@
 
 #include <utils/hostosinfo.h>
 #include <utils/qtcassert.h>
+#include <utils/algorithm.h>
 
 #include <QAction>
 #include <QTimer>
@@ -230,11 +232,13 @@ bool QmlDesignerPlugin::initialize(const QStringList & /*arguments*/, QString *e
 bool QmlDesignerPlugin::delayedInitialize()
 {
     // adding default path to item library plugins
-    const QString pluginPath = Utils::HostOsInfo::isMacHost()
-            ? QString(QCoreApplication::applicationDirPath() + "/../PlugIns/QmlDesigner")
-            : QString(QCoreApplication::applicationDirPath() + "/../"
-                      + QLatin1String(IDE_LIBRARY_BASENAME) + "/qtcreator/plugins/qmldesigner");
-    MetaInfo::setPluginPaths(QStringList(pluginPath));
+    const QString postfix = Utils::HostOsInfo::isMacHost() ? QString("/QmlDesigner")
+                                                           : QString("/qmldesigner");
+    const QStringList pluginPaths =
+        Utils::transform(ExtensionSystem::PluginManager::pluginPaths(), [postfix](const QString &p) {
+            return QString(p + postfix);
+        });
+    MetaInfo::setPluginPaths(pluginPaths);
 
     d->settings.fromSettings(Core::ICore::settings());
 
@@ -564,7 +568,7 @@ void QmlDesignerPlugin::emitUsageStatisticsContextAction(const QString &identifi
     emitUsageStatistics(Constants::EVENT_ACTION_EXECUTED + identifier);
 }
 
-ImageCache &QmlDesignerPlugin::imageCache()
+AsynchronousImageCache &QmlDesignerPlugin::imageCache()
 {
     return m_instance->d->viewManager.imageCache();
 }

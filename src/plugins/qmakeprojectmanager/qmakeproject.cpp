@@ -121,9 +121,9 @@ public:
     {
         Q_UNUSED(errorString)
         Q_UNUSED(flag)
-        if (type == TypePermissions)
-            return true;
-        m_priFile->scheduleUpdate();
+        Q_UNUSED(type)
+        if (m_priFile)
+            m_priFile->scheduleUpdate();
         return true;
     }
 
@@ -352,8 +352,11 @@ void QmakeBuildSystem::updateCppCodeModel()
             rpp.setBuildTargetType(BuildTargetType::Unknown);
             break;
         }
-        rpp.setFlagsForCxx({kitInfo.cxxToolChain, pro->variableValue(Variable::CppFlags)});
-        rpp.setFlagsForC({kitInfo.cToolChain, pro->variableValue(Variable::CFlags)});
+        const QString includeFileBaseDir = pro->sourceDir().toString();
+        rpp.setFlagsForCxx({kitInfo.cxxToolChain, pro->variableValue(Variable::CppFlags),
+                            includeFileBaseDir});
+        rpp.setFlagsForC({kitInfo.cToolChain, pro->variableValue(Variable::CFlags),
+                          includeFileBaseDir});
         rpp.setMacros(ProjectExplorer::Macro::toMacros(pro->cxxDefines()));
         rpp.setPreCompiledHeaders(pro->variableValue(Variable::PrecompiledHeader));
         rpp.setSelectedForBuilding(pro->includedInExactParse());
@@ -663,6 +666,18 @@ void QmakeBuildSystem::asyncUpdate()
                                    Constants::PROFILE_EVALUATE);
 
     m_asyncUpdateFutureInterface.reportStarted();
+    const auto watcher = new QFutureWatcher<void>(this);
+    connect(watcher, &QFutureWatcher<void>::canceled, this, [this, watcher] {
+        if (!m_qmakeGlobals)
+            return;
+        watcher->disconnect();
+        m_qmakeGlobals->killProcesses();
+    });
+    connect(watcher, &QFutureWatcher<void>::finished, this, [watcher] {
+        watcher->disconnect();
+        watcher->deleteLater();
+    });
+    watcher->setFuture(m_asyncUpdateFutureInterface.future());
 
     const Kit *const k = kit();
     QtSupport::BaseQtVersion *const qtVersion = QtSupport::QtKitAspect::qtVersion(k);
@@ -678,7 +693,26 @@ void QmakeBuildSystem::asyncUpdate()
         return;
     }
 
+    // Make sure we ignore requests for re-evaluation for files whose QmakePriFile objects
+    // will get deleted during the parse.
+    const auto docUpdater = [](Core::IDocument *doc) {
+        static_cast<QmakePriFileDocument *>(doc)->setPriFile(nullptr);
+    };
+    if (m_asyncUpdateState != AsyncFullUpdatePending) {
+        QSet<FilePath> projectFilePaths;
+        for (QmakeProFile * const file : qAsConst(m_partialEvaluate)) {
+            QVector<QmakePriFile *> priFiles = file->children();
+            for (int i = 0; i < priFiles.count(); ++i) {
+                const QmakePriFile * const priFile = priFiles.at(i);
+                projectFilePaths << priFile->filePath();
+                priFiles << priFile->children();
+            }
+        }
+        project()->updateExtraProjectFiles(projectFilePaths, docUpdater);
+    }
+
     if (m_asyncUpdateState == AsyncFullUpdatePending) {
+        project()->updateExtraProjectFiles(docUpdater);
         rootProFile()->asyncUpdate();
     } else {
         foreach (QmakeProFile *file, m_partialEvaluate)
@@ -1067,11 +1101,7 @@ void CentralizedFolderWatcher::delayedFolderChanged(const QString &folder)
 void QmakeProject::configureAsExampleProject(Kit *kit)
 {
     QList<BuildInfo> infoList;
-    QList<Kit *> kits;
-    if (kit)
-        kits.append(kit);
-    else
-        kits = KitManager::kits();
+    const QList<Kit *> kits(kit != nullptr ? QList<Kit *>({kit}) : KitManager::kits());
     for (Kit *k : kits) {
         if (QtSupport::QtKitAspect::qtVersion(k) != nullptr) {
             if (auto factory = BuildConfigurationFactory::find(k, projectFilePath()))
