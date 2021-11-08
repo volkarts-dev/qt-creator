@@ -1,5 +1,10 @@
+set(CMLE_ENABLE_SAMPLECMD OFF)
+set(CMLE_ENABLE_UNITTESTS OFF)
+set(CMLE_ENABLE_CODECOVERAGE OFF)
+add_subdirectory(cmakelistsedit)
+
 add_qtc_plugin(CMakeProjectManager
-  DEPENDS QmlJS
+  DEPENDS QmlJS cmle::cmle
   PLUGIN_DEPENDS Core CppTools ProjectExplorer TextEditor QtSupport
   PLUGIN_RECOMMENDS Designer
   SOURCES
@@ -23,6 +28,7 @@ add_qtc_plugin(CMakeProjectManager
     cmakeprojectconstants.h
     cmakeprojectimporter.cpp cmakeprojectimporter.h
     cmakeprojectmanager.cpp cmakeprojectmanager.h
+    cmakeprojectfile.cpp cmakeprojectfile.h
     cmakeprojectnodes.cpp cmakeprojectnodes.h
     cmakeprojectplugin.cpp cmakeprojectplugin.h
     cmakesettingspage.cpp cmakesettingspage.h

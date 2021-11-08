@@ -68,6 +68,16 @@ public:
 
     bool addFiles(ProjectExplorer::Node *context,
                   const Utils::FilePaths &filePaths, Utils::FilePaths *) final;
+    ProjectExplorer::RemovedFilesFromProject removeFiles(ProjectExplorer::Node *context,
+                                                         const Utils::FilePaths &filePaths,
+                                                         Utils::FilePaths *notRemoved = nullptr) final;
+    bool deleteFiles(ProjectExplorer::Node *context, const Utils::FilePaths &filePaths);
+    bool canRenameFile(ProjectExplorer::Node *context,
+                       const Utils::FilePath &oldFilePath,
+                       const Utils::FilePath &newFilePath);
+    bool renameFile(ProjectExplorer::Node *context,
+                    const Utils::FilePath &oldFilePath,
+                    const Utils::FilePath &newFilePath);
 
     Utils::FilePaths filesGeneratedFrom(const Utils::FilePath &sourceFile) const final;
 
