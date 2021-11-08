@@ -31,6 +31,7 @@
 #include "cmakebuildtarget.h"
 #include "cmakekitinformation.h"
 #include "cmakeprojectconstants.h"
+#include "cmakeprojectfile.h"
 #include "cmakeprojectnodes.h"
 #include "cmakeprojectplugin.h"
 #include "cmakespecificsettings.h"
@@ -140,6 +141,37 @@ static void noAutoAdditionNotify(const FilePaths &filePaths, const ProjectNode *
             break;
         }
     }
+}
+
+static ProjectNode* getCMakeTargetParentNode(Node* node)
+{
+    Node* c = node;
+    while (c)
+    {
+        if (auto tn = dynamic_cast<CMakeTargetNode*>(c))
+            return tn;
+        else if (auto tn = dynamic_cast<CMakeProjectNode*>(c))
+            return tn;
+        c = c->parentFolderNode();
+    }
+    return nullptr;
+}
+
+static std::unique_ptr<CMakeProjectFile> loadProjectFile(Node* node)
+{
+    auto tn = getCMakeTargetParentNode(node);
+    if (!tn)
+        return {};
+
+    auto listsFilePath = tn->filePath() / "CMakeLists.txt";
+    if (!listsFilePath.exists())
+        return {};
+
+    auto listsFile = std::make_unique<CMakeProjectFile>(tn->buildKey(), tn->filePath(), listsFilePath);
+    if (!listsFile->load())
+        return {};
+
+    return std::move(listsFile);
 }
 
 static Q_LOGGING_CATEGORY(cmakeBuildSystemLog, "qtc.cmake.buildsystem", QtWarningMsg);
@@ -298,17 +330,67 @@ void CMakeBuildSystem::triggerParsing()
 
 bool CMakeBuildSystem::supportsAction(Node *context, ProjectAction action, const Node *node) const
 {
-    if (dynamic_cast<CMakeTargetNode *>(context))
-        return action == ProjectAction::AddNewFile;
+    if (dynamic_cast<CMakeTargetNode*>(context))
+    {
+        if (action == ProjectAction::AddNewFile)
+            return true;
 
-    if (dynamic_cast<CMakeListsNode *>(context))
-        return action == ProjectAction::AddNewFile;
+        CMakeSpecificSettings *settings = CMakeProjectPlugin::projectTypeSpecificSettings();
+        if (settings->afterAddFileSetting.value() == AfterAddFileAction::Automatic)
+        {
+            if (auto n = dynamic_cast<const FileNode*>(node))
+            {
+                if (n->fileType() == FileType::Header ||
+                    n->fileType() == FileType::Source ||
+                    n->fileType() == FileType::Form ||
+                    n->fileType() == FileType::Resource)
+                {
+                    return action == ProjectAction::RemoveFile ||
+                            action == ProjectAction::EraseFile ||
+                            action == ProjectAction::Rename;
+                }
+            }
+        }
+        else
+        {
+            return dynamic_cast<CMakeListsNode*>(context) && action == ProjectAction::AddNewFile;
+        }
+    }
 
     return BuildSystem::supportsAction(context, action, node);
 }
 
 bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FilePaths *notAdded)
 {
+    CMakeSpecificSettings *settings = CMakeProjectPlugin::projectTypeSpecificSettings();
+    if (settings->afterAddFileSetting.value() == AfterAddFileAction::Automatic)
+    {
+        const FilePaths srcPaths = Utils::filtered(filePaths, [](const FilePath &file) {
+            const auto mimeType = Utils::mimeTypeForFile(file).name();
+            return mimeType == CppTools::Constants::C_SOURCE_MIMETYPE ||
+                   mimeType == CppTools::Constants::C_HEADER_MIMETYPE ||
+                   mimeType == CppTools::Constants::CPP_SOURCE_MIMETYPE ||
+                   mimeType == CppTools::Constants::CPP_HEADER_MIMETYPE ||
+                   mimeType == ProjectExplorer::Constants::FORM_MIMETYPE ||
+                   mimeType == ProjectExplorer::Constants::RESOURCE_MIMETYPE ||
+                   mimeType == ProjectExplorer::Constants::SCXML_MIMETYPE;
+        });
+
+        if (auto projectFile = loadProjectFile(context))
+        {
+            bool ret = projectFile->addFiles(srcPaths, notAdded);
+            if (!ret && notAdded)
+            {
+                if (auto n = dynamic_cast<CMakeProjectNode *>(context)) {
+                    copySourcePathsToClipboard(*notAdded, dynamic_cast<ProjectNode*>(context));
+                    notAdded->clear();
+                    ret = true;
+                }
+            }
+            return ret;
+        }
+    }
+
     if (auto n = dynamic_cast<CMakeProjectNode *>(context)) {
         noAutoAdditionNotify(filePaths, n);
         return true; // Return always true as autoadd is not supported!
@@ -320,6 +402,49 @@ bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FileP
     }
 
     return BuildSystem::addFiles(context, filePaths, notAdded);
+}
+
+RemovedFilesFromProject CMakeBuildSystem::removeFiles(Node* context,
+                                                      const Utils::FilePaths& filePaths,
+                                                      Utils::FilePaths* notRemoved)
+{
+    if (auto projectFile = loadProjectFile(context))
+    {
+        auto ret = projectFile->removeFiles(filePaths, notRemoved);
+        return ret ? RemovedFilesFromProject::Ok : RemovedFilesFromProject::Error;
+    }
+
+    return BuildSystem::removeFiles(context, filePaths, notRemoved);
+}
+
+bool CMakeBuildSystem::deleteFiles(Node* context,
+                                   const Utils::FilePaths& filePaths)
+{
+    if (auto projectFile = loadProjectFile(context))
+    {
+        return projectFile->deleteFiles(filePaths);
+    }
+
+    return BuildSystem::deleteFiles(context, filePaths);
+}
+
+bool CMakeBuildSystem::canRenameFile(Node* context,
+                                     const Utils::FilePath& oldFilePath,
+                                     const Utils::FilePath& newFilePath)
+{
+    return BuildSystem::canRenameFile(context, oldFilePath, newFilePath);
+}
+
+bool CMakeBuildSystem::renameFile(Node* context,
+                                  const Utils::FilePath& oldFilePath,
+                                  const Utils::FilePath& newFilePath)
+{
+    if (auto projectFile = loadProjectFile(context))
+    {
+        return projectFile->renameFile(oldFilePath, newFilePath);
+    }
+
+    return renameFile(context, oldFilePath, newFilePath);
 }
 
 FilePaths CMakeBuildSystem::filesGeneratedFrom(const FilePath &sourceFile) const

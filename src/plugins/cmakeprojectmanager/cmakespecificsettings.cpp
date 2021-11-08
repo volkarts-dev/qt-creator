@@ -49,6 +49,7 @@ CMakeSpecificSettings::CMakeSpecificSettings()
     afterAddFileSetting.addOption(tr("Ask about copying file paths"));
     afterAddFileSetting.addOption(tr("Do not copy file paths"));
     afterAddFileSetting.addOption(tr("Copy file paths"));
+    afterAddFileSetting.addOption(tr("Automatic add/rename/remove files from project files"));
     afterAddFileSetting.setToolTip(tr("Determines whether file paths are copied "
         "to the clipboard for pasting to the CMakeLists.txt file when you "
         "add new files to CMake projects."));
