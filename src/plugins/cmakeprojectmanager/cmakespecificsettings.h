@@ -50,6 +50,7 @@ public:
     Utils::StringAspect ninjaPath;
     Utils::BoolAspect packageManagerAutoSetup;
     Utils::BoolAspect askBeforeReConfigureInitialParams;
+    Utils::BoolAspect showSourceGroups;
 };
 
 class CMakeSpecificSettingsPage final : public Core::IOptionsPage

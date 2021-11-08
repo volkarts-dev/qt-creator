@@ -73,6 +73,12 @@ CMakeSpecificSettings::CMakeSpecificSettings()
     askBeforeReConfigureInitialParams.setDefaultValue(true);
     askBeforeReConfigureInitialParams.setLabelText(tr("Ask before re-configuring with "
         "initial parameters"));
+
+    registerAspect(&showSourceGroups);
+    showSourceGroups.setSettingsKey("ShowSourceGroups");
+    showSourceGroups.setDefaultValue(true);
+    showSourceGroups.setLabelText(tr("Show files organized in source groups in project explorer"));
+    showSourceGroups.setToolTip(tr("Changes will take an effect when project is reparsed"));
 }
 
 // CMakeSpecificSettingsPage
@@ -94,6 +100,8 @@ CMakeSpecificSettingsPage::CMakeSpecificSettingsPage(CMakeSpecificSettings *sett
             },
             s.packageManagerAutoSetup,
             s.askBeforeReConfigureInitialParams,
+            Break(),
+            s.showSourceGroups,
             Stretch(),
         }.attachTo(widget);
     });
