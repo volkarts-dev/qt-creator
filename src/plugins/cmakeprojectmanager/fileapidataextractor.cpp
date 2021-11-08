@@ -25,6 +25,8 @@
 
 #include "fileapidataextractor.h"
 
+#include "cmakeprojectplugin.h"
+#include "cmakespecificsettings.h"
 #include "fileapiparser.h"
 #include "projecttreehelper.h"
 
@@ -542,10 +544,13 @@ void addCompileGroups(ProjectNode *targetRoot,
         }
     }
 
-    // Calculate base directory for source groups:
+    CMakeSpecificSettings *settings = CMakeProjectPlugin::projectTypeSpecificSettings();
+    const bool showSourceGroups = settings->showSourceGroups.value();
+
+    FilePath baseDirectory;
+    // Calculate base directory for source files:
     for (size_t i = 0; i < sourceGroupFileNodes.size(); ++i) {
         std::vector<std::unique_ptr<FileNode>> &current = sourceGroupFileNodes[i];
-        FilePath baseDirectory;
         // All the sourceGroupFileNodes are below sourceDirectory, so this is safe:
         for (const std::unique_ptr<FileNode> &fn : current) {
             if (baseDirectory.isEmpty()) {
@@ -554,11 +559,22 @@ void addCompileGroups(ProjectNode *targetRoot,
                 baseDirectory = Utils::FileUtils::commonPath(baseDirectory, fn->filePath());
             }
         }
+    }
 
-        FolderNode *insertNode = createSourceGroupNode(td.sourceGroups[i],
-                                                       baseDirectory,
-                                                       targetRoot);
-        insertNode->addNestedNodes(std::move(current), baseDirectory);
+    if (showSourceGroups)
+    {
+        for (size_t i = 0; i < sourceGroupFileNodes.size(); ++i) {
+            FolderNode *insertNode = createSourceGroupNode(td.sourceGroups[i],
+                                                           baseDirectory,
+                                                           targetRoot);
+            insertNode->addNestedNodes(std::move(sourceGroupFileNodes[i]), baseDirectory);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < sourceGroupFileNodes.size(); ++i) {
+            targetRoot->addNestedNodes(std::move(sourceGroupFileNodes[i]), baseDirectory);
+        }
     }
 
     addCMakeVFolder(targetRoot,
