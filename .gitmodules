@@ -12,3 +12,6 @@
 [submodule "src/libs/qlitehtml"]
 	path = src/libs/qlitehtml
 	url = https://code.qt.io/playground/qlitehtml.git
+[submodule "cmakeprojectmanager/cmakelistsedit"]
+    path = src/plugins/cmakeprojectmanager/cmakelistsedit
+    url = https://github.com/DerSauron/cmakelistsedit.git
