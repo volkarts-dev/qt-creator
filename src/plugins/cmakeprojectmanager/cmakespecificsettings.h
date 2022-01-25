@@ -12,7 +12,8 @@ namespace CMakeProjectManager::Internal {
 enum AfterAddFileAction : int {
     AskUser,
     CopyFilePath,
-    NeverCopyFilePath
+    NeverCopyFilePath,
+    Automatic
 };
 
 class CMakeSpecificSettings final : public Utils::AspectContainer
