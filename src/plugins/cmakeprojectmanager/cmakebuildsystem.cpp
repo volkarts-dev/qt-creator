@@ -356,10 +356,10 @@ bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FileP
     {
         const FilePaths srcPaths = Utils::filtered(filePaths, [](const FilePath &file) {
             const auto mimeType = Utils::mimeTypeForFile(file).name();
-            return mimeType == CppTools::Constants::C_SOURCE_MIMETYPE ||
-                   mimeType == CppTools::Constants::C_HEADER_MIMETYPE ||
-                   mimeType == CppTools::Constants::CPP_SOURCE_MIMETYPE ||
-                   mimeType == CppTools::Constants::CPP_HEADER_MIMETYPE ||
+            return mimeType == ProjectExplorer::Constants::C_SOURCE_MIMETYPE ||
+                   mimeType == ProjectExplorer::Constants::C_HEADER_MIMETYPE ||
+                   mimeType == ProjectExplorer::Constants::CPP_SOURCE_MIMETYPE ||
+                   mimeType == ProjectExplorer::Constants::CPP_HEADER_MIMETYPE ||
                    mimeType == ProjectExplorer::Constants::FORM_MIMETYPE ||
                    mimeType == ProjectExplorer::Constants::RESOURCE_MIMETYPE ||
                    mimeType == ProjectExplorer::Constants::SCXML_MIMETYPE;
