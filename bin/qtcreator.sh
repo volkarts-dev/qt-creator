@@ -17,6 +17,8 @@ makeAbsolute() {
     esac
 }
 
+export QT_QPA_PLATFORMTHEME=qt6ct
+
 me=`which "$0"` # Search $PATH if necessary
 if test -L "$me"; then
     # Try GNU readlink(1)
