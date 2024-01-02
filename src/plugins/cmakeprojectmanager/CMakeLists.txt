@@ -1,6 +1,11 @@
+set(CMLE_ENABLE_CLI OFF)
+set(CMLE_ENABLE_UNITTESTS OFF)
+set(CMLE_ENABLE_CODECOVERAGE OFF)
+add_subdirectory(3rdparty/cmakelistsedit)
+
 add_qtc_plugin(CMakeProjectManager
   PLUGIN_CLASS CMakeProjectPlugin
-  DEPENDS QmlJS
+  DEPENDS QmlJS cmle::cmle
   PLUGIN_DEPENDS Core CppEditor ProjectExplorer TextEditor QtSupport
   SYSTEM_INCLUDES 3dparty/cmake
   SOURCES

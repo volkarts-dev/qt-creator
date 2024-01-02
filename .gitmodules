@@ -12,3 +12,6 @@
 [submodule "googletest"]
 	path = src/libs/3rdparty/googletest
 	url = https://github.com/google/googletest.git
+[submodule "src/plugins/cmakeprojectmanager/3rdparty/cmakelistsedit"]
+	path = src/plugins/cmakeprojectmanager/3rdparty/cmakelistsedit
+	url = https://github.com/volkarts-dev/cmakelistsedit.git

@@ -34,6 +34,7 @@ CMakeSpecificSettings::CMakeSpecificSettings()
             askBeforePresetsReload,
             showSourceSubFolders,
             showAdvancedOptionsByDefault,
+            resortFilesInSourcesFunctions,
             st
         };
     });
@@ -86,6 +87,11 @@ CMakeSpecificSettings::CMakeSpecificSettings()
     showAdvancedOptionsByDefault.setDefaultValue(false);
     showAdvancedOptionsByDefault.setLabelText(
                 ::CMakeProjectManager::Tr::tr("Show advanced options by default"));
+
+    resortFilesInSourcesFunctions.setSettingsKey("ResortFilesInSourcesFunctions");
+    resortFilesInSourcesFunctions.setDefaultValue(false);
+    resortFilesInSourcesFunctions.setLabelText(
+                ::CMakeProjectManager::Tr::tr("Resort file list when new files to CMakeLists files are added"));
 
     readSettings();
 }
