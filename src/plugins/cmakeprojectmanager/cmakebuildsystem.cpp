@@ -17,7 +17,6 @@
 
 #include <android/androidconstants.h>
 
-#include <cmle/ByteArrayFileBuffer.h>
 #include <cmle/CMakeListsFile.h>
 
 #include <coreplugin/icore.h>
@@ -256,7 +255,6 @@ bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FileP
         }
 
         // parse CMake file
-        cmle::ByteArrayFileBuffer listsFileBuffer{};
         cmle::CMakeListsFile listsFile{fileContent.value_or(QByteArray{})};
         if (!listsFile.isLoaded()) {
             qCCritical(cmakeBuildSystemLog).noquote() << "Could not parse cmake lists file" << targetCMakeFile;
@@ -341,7 +339,6 @@ RemovedFilesFromProject CMakeBuildSystem::removeFiles(Node *context,
         }
 
         // parse CMake file
-        cmle::ByteArrayFileBuffer listsFileBuffer{};
         cmle::CMakeListsFile listsFile{fileContent.value_or(QByteArray{})};
         if (!listsFile.isLoaded()) {
             qCCritical(cmakeBuildSystemLog).noquote() << "Could not parse cmake lists file" << targetCMakeFile;
@@ -444,7 +441,6 @@ bool CMakeBuildSystem::renameFile(Node *context,
         }
 
         // parse CMake file
-        cmle::ByteArrayFileBuffer listsFileBuffer{};
         cmle::CMakeListsFile listsFile{fileContent.value_or(QByteArray{})};
         if (!listsFile.isLoaded()) {
             qCCritical(cmakeBuildSystemLog).noquote() << "Could not parse cmake lists file" << targetCMakeFile;
