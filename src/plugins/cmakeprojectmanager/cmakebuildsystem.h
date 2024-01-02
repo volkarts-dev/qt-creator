@@ -204,16 +204,6 @@ private:
 
     void setupCMakeSymbolsHash();
 
-    struct ProjectFileArgumentPosition
-    {
-        cmListFileArgument argumentPosition;
-        Utils::FilePath cmakeFile;
-        QString relativeFileName;
-        bool fromGlobbing = false;
-    };
-    std::optional<ProjectFileArgumentPosition> projectFileArgumentPosition(
-        const QString &targetName, const QString &fileName);
-
     ProjectExplorer::TreeScanner m_treeScanner;
     std::shared_ptr<ProjectExplorer::FolderNode> m_allFiles;
     QHash<QString, bool> m_mimeBinaryCache;
@@ -236,7 +226,7 @@ private:
     QStringList m_projectImportedTargets;
     QStringList m_projectFindPackageVariables;
 
-    QHash<QString, ProjectFileArgumentPosition> m_filesToBeRenamed;
+    QHash<Utils::FilePath, QString> m_filesToBeRenamed;
 
     // Parsing state:
     BuildDirParameters m_parameters;

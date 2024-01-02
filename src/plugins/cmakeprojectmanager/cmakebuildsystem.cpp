@@ -250,16 +250,20 @@ bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FileP
         Core::DocumentManager::saveModifiedDocumentSilently(
             Core::DocumentModel::documentForFilePath(targetCMakeFile));
         expected_str<QByteArray> fileContent = targetCMakeFile.fileContents();
-
-        // parse CMake file
-        cmle::ByteArrayFileBuffer listsFileBuffer{fileContent.value_or(QByteArray{})};
-        cmle::CMakeListsFile listsFile{&listsFileBuffer};
-        if (!listsFile.isLoaded()) {
+        if (!fileContent.has_value()) {
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not load cmake lists file" << targetCMakeFile;
             return false;
         }
 
-        auto settings = CMakeSpecificSettings::instance();
-        listsFile.setSortSectionPolicy(settings->resortFilesInSourcesFunctions.value() ?
+        // parse CMake file
+        cmle::ByteArrayFileBuffer listsFileBuffer{};
+        cmle::CMakeListsFile listsFile{fileContent.value_or(QByteArray{})};
+        if (!listsFile.isLoaded()) {
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not parse cmake lists file" << targetCMakeFile;
+            return false;
+        }
+
+        listsFile.setSortSectionPolicy(settings().resortFilesInSourcesFunctions.value() ?
                                            cmle::SortSectionPolicy::Sort : cmle::SortSectionPolicy::NoSort);
 
         // Add file path to CMake
@@ -275,23 +279,18 @@ bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FileP
         }
 
         // Write back to file
-
-        //BaseTextEditor *editor = qobject_cast<BaseTextEditor *>(
-        //    Core::EditorManager::openEditor(targetCMakeFile, Constants::CMAKE_EDITOR_ID,
-        //                                    Core::EditorManager::DoNotMakeVisible));
-        //if (!editor) {
-        //    *notAdded = filePaths;
-        //    return false;
-        //}
-
-        //editor->writeFileContents();
+        BaseTextEditor *editor = qobject_cast<BaseTextEditor *>(
+            Core::EditorManager::openEditor(targetCMakeFile,
+                                            Constants::CMAKE_EDITOR_ID,
+                                            Core::EditorManager::DoNotMakeVisible));
+        if (!editor) {
+            qCCritical(cmakeBuildSystemLog).noquote()
+                    << "BaseTextEditor cannot be obtained for" << targetCMakeFile.path();
+            return false;
+        }
+        editor->document()->setContents(listsFile.write());
         //editor->editorWidget()->autoIndent();
-        //if (!Core::DocumentManager::saveDocument(editor->document()))
-        //    return false;
-
-        if (listsFile.save()) {
-            targetCMakeFile.writeFileContents(listsFileBuffer.content());
-        } else {
+        if (!Core::DocumentManager::saveDocument(editor->document())) {
             qCCritical(cmakeBuildSystemLog).noquote()
                 << "Changes to" << targetCMakeFile.path() << "could not be saved.";
             return false;
@@ -305,136 +304,18 @@ bool CMakeBuildSystem::addFiles(Node *context, const FilePaths &filePaths, FileP
         }
 
         return badFiles.size() < filePaths.size();
-
     }
 
     return BuildSystem::addFiles(context, filePaths, notAdded);
-}
-
-std::optional<CMakeBuildSystem::ProjectFileArgumentPosition>
-CMakeBuildSystem::projectFileArgumentPosition(const QString &targetName, const QString &fileName)
-{
-    auto target = Utils::findOrDefault(buildTargets(), [targetName](const CMakeBuildTarget &target) {
-        return target.title == targetName;
-    });
-
-    if (target.backtrace.isEmpty())
-        return std::nullopt;
-
-    const FilePath targetCMakeFile = target.backtrace.last().path;
-
-    // Have a fresh look at the CMake file, not relying on a cached value
-    Core::DocumentManager::saveModifiedDocumentSilently(
-        Core::DocumentModel::documentForFilePath(targetCMakeFile));
-    expected_str<QByteArray> fileContent = targetCMakeFile.fileContents();
-    cmListFile cmakeListFile;
-    std::string errorString;
-    if (fileContent) {
-        fileContent = fileContent->replace("\r\n", "\n");
-        if (!cmakeListFile.ParseString(fileContent->toStdString(),
-                                       targetCMakeFile.fileName().toStdString(),
-                                       errorString))
-            return std::nullopt;
-    }
-
-    const int targetDefinitionLine = target.backtrace.last().line;
-
-    auto function = std::find_if(cmakeListFile.Functions.begin(),
-                                 cmakeListFile.Functions.end(),
-                                 [targetDefinitionLine](const auto &func) {
-                                     return func.Line() == targetDefinitionLine;
-                                 });
-
-    const std::string target_name = targetName.toStdString();
-    auto targetSourcesFunc = std::find_if(cmakeListFile.Functions.begin(),
-                                          cmakeListFile.Functions.end(),
-                                          [target_name](const auto &func) {
-                                              return func.LowerCaseName() == "target_sources"
-                                                     && func.Arguments().size() > 1
-                                                     && func.Arguments().front().Value
-                                                            == target_name;
-                                          });
-    auto addQmlModuleFunc = std::find_if(cmakeListFile.Functions.begin(),
-                                         cmakeListFile.Functions.end(),
-                                         [target_name](const auto &func) {
-                                             return (func.LowerCaseName() == "qt_add_qml_module"
-                                                     || func.LowerCaseName() == "qt6_add_qml_module")
-                                                    && func.Arguments().size() > 1
-                                                    && func.Arguments().front().Value
-                                                           == target_name;
-                                         });
-
-    for (const auto &func : {function, targetSourcesFunc, addQmlModuleFunc}) {
-        if (func == cmakeListFile.Functions.end())
-            continue;
-        auto filePathArgument = Utils::findOrDefault(func->Arguments(),
-                                                     [file_name = fileName.toStdString()](
-                                                         const auto &arg) {
-                                                         return arg.Value == file_name;
-                                                     });
-
-        if (!filePathArgument.Value.empty()) {
-            return ProjectFileArgumentPosition{filePathArgument, targetCMakeFile, fileName};
-        } else {
-            // Check if the filename is part of globbing variable result
-            const auto globFunctions = std::get<0>(
-                Utils::partition(cmakeListFile.Functions, [](const auto &f) {
-                    return f.LowerCaseName() == "file" && f.Arguments().size() > 2
-                           && (f.Arguments().front().Value == "GLOB"
-                               || f.Arguments().front().Value == "GLOB_RECURSE");
-                }));
-
-            const auto globVariables = Utils::transform<QSet>(globFunctions, [](const auto &func) {
-                return std::string("${") + func.Arguments()[1].Value + "}";
-            });
-
-            const auto haveGlobbing = Utils::anyOf(func->Arguments(),
-                                                   [globVariables](const auto &arg) {
-                                                       return globVariables.contains(arg.Value);
-                                                   });
-
-            if (haveGlobbing) {
-                return ProjectFileArgumentPosition{filePathArgument,
-                                                   targetCMakeFile,
-                                                   fileName,
-                                                   true};
-            }
-
-            // Check if the filename is part of a variable set by the user
-            const auto setFunctions = std::get<0>(
-                Utils::partition(cmakeListFile.Functions, [](const auto &f) {
-                    return f.LowerCaseName() == "set" && f.Arguments().size() > 1;
-                }));
-
-            for (const auto &arg : func->Arguments()) {
-                auto matchedFunctions = Utils::filtered(setFunctions, [arg](const auto &f) {
-                    return arg.Value == std::string("${") + f.Arguments()[0].Value + "}";
-                });
-
-                for (const auto &f : matchedFunctions) {
-                    filePathArgument = Utils::findOrDefault(f.Arguments(),
-                                                            [file_name = fileName.toStdString()](
-                                                                const auto &arg) {
-                                                                return arg.Value == file_name;
-                                                            });
-
-                    if (!filePathArgument.Value.empty()) {
-                        return ProjectFileArgumentPosition{filePathArgument,
-                                                           targetCMakeFile,
-                                                           fileName};
-                    }
-                }
-            }
-        }
-    }
-
-    return std::nullopt;
 }
 
 RemovedFilesFromProject CMakeBuildSystem::removeFiles(Node *context,
                                                       const FilePaths &filePaths,
                                                       FilePaths *notRemoved)
 {
+    if (notRemoved)
+        *notRemoved = filePaths;
+
     FilePaths badFiles;
     if (auto n = dynamic_cast<CMakeTargetNode *>(context)) {
         const QString targetName = n->buildKey();
@@ -444,31 +325,27 @@ RemovedFilesFromProject CMakeBuildSystem::removeFiles(Node *context,
                                            });
 
         if (target.backtrace.isEmpty()) {
-            if (notRemoved)
-                *notRemoved = filePaths;
+            qCCritical(cmakeBuildSystemLog) << "target.backtrace for" << targetName << "is empty. "
+                                            << "The location where to remove the files from is unknown.";
             return RemovedFilesFromProject::Error;
-
-                    qCCritical(cmakeBuildSystemLog).noquote()
-                        << "File" << filePos.value().cmakeFile.path() << "does not exist.";
         }
         const FilePath targetCMakeFile = target.backtrace.last().path;
+
         // Have a fresh look at the CMake file, not relying on a cached value
         Core::DocumentManager::saveModifiedDocumentSilently(
             Core::DocumentModel::documentForFilePath(targetCMakeFile));
         expected_str<QByteArray> fileContent = targetCMakeFile.fileContents();
+        if (!fileContent.has_value()) {
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not load cmake lists file" << targetCMakeFile;
+            return RemovedFilesFromProject::Error;
+        }
 
         // parse CMake file
-        cmle::ByteArrayFileBuffer listsFileBuffer{fileContent.value_or(QByteArray{})};
-        cmle::CMakeListsFile listsFile{&listsFileBuffer};
+        cmle::ByteArrayFileBuffer listsFileBuffer{};
+        cmle::CMakeListsFile listsFile{fileContent.value_or(QByteArray{})};
         if (!listsFile.isLoaded()) {
-            if (notRemoved)
-                *notRemoved = filePaths;
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not parse cmake lists file" << targetCMakeFile;
             return RemovedFilesFromProject::Error;
-
-                    qCCritical(cmakeBuildSystemLog).noquote()
-                        << "BaseTextEditor cannot be obtained for"
-                        << filePos.value().cmakeFile.path() << filePos.value().argumentPosition.Line
-                        << int(filePos.value().argumentPosition.Column - 1);
         }
 
         // Remove files
@@ -483,18 +360,33 @@ RemovedFilesFromProject CMakeBuildSystem::removeFiles(Node *context,
         }
 
         // Write back to file
-        if (listsFile.save()) {
-            targetCMakeFile.writeFileContents(listsFileBuffer.content());
-        } else {
+        BaseTextEditor *editor = qobject_cast<BaseTextEditor *>(
+            Core::EditorManager::openEditor(targetCMakeFile,
+                                            Constants::CMAKE_EDITOR_ID,
+                                            Core::EditorManager::DoNotMakeVisible));
+        if (!editor) {
             qCCritical(cmakeBuildSystemLog).noquote()
-                << "Changes to" << filePos.value().cmakeFile.path()
-                << "could not be saved.";
+                    << "BaseTextEditor cannot be obtained for" << targetCMakeFile.path();
+            return RemovedFilesFromProject::Error;
+        }
+        editor->document()->setContents(listsFile.write());
+        //editor->editorWidget()->autoIndent();
+        if (!Core::DocumentManager::saveDocument(editor->document())) {
+            qCCritical(cmakeBuildSystemLog).noquote()
+                << "Changes to" << targetCMakeFile.path() << "could not be saved.";
+            return RemovedFilesFromProject::Error;
         }
 
         if (notRemoved && !badFiles.empty())
             *notRemoved = badFiles;
 
-        return badFiles.isEmpty() ? RemovedFilesFromProject::Ok : RemovedFilesFromProject::Error;
+        if (!badFiles.empty())
+            return RemovedFilesFromProject::Error;
+
+        if (!listsFile.hasChangedBlocks())
+            return RemovedFilesFromProject::Wildcard;
+
+        return RemovedFilesFromProject::Ok;
     }
 
     return RemovedFilesFromProject::Error;
@@ -516,17 +408,7 @@ bool CMakeBuildSystem::canRenameFile(Node *context,
         const QString oldRelPathName
             = oldFilePath.canonicalPath().relativePathFrom(projDir).cleanPath().toString();
 
-        const QString targetName = n->buildKey();
-
-        const QString key
-            = QStringList{projDir.path(), targetName, oldFilePath.path(), newFilePath.path()}
-                  .join(";");
-
-        auto filePos = projectFileArgumentPosition(targetName, oldRelPathName);
-        if (!filePos)
-            return false;
-
-        m_filesToBeRenamed.insert(key, filePos.value());
+        m_filesToBeRenamed.insert(newFilePath, oldRelPathName);
         return true;
     }
     return false;
@@ -536,6 +418,8 @@ bool CMakeBuildSystem::renameFile(Node *context,
                                   const FilePath &oldFilePath,
                                   const FilePath &newFilePath)
 {
+    Q_UNUSED(oldFilePath)
+
     if (auto n = dynamic_cast<CMakeTargetNode *>(context)) {
         const QString targetName = n->buildKey();
         auto target = Utils::findOrDefault(buildTargets(),
@@ -544,44 +428,60 @@ bool CMakeBuildSystem::renameFile(Node *context,
                                            });
 
         if (target.backtrace.isEmpty()) {
-            qCCritical(cmakeBuildSystemLog).noquote()
-                << "File" << fileToRename.cmakeFile.path() << "does not exist.";
+            qCCritical(cmakeBuildSystemLog) << "target.backtrace for" << targetName << "is empty. "
+                                            << "The location where to remove the files from is unknown.";
             return false;
         }
         const FilePath targetCMakeFile = target.backtrace.last().path;
+
         // Have a fresh look at the CMake file, not relying on a cached value
         Core::DocumentManager::saveModifiedDocumentSilently(
             Core::DocumentModel::documentForFilePath(targetCMakeFile));
         expected_str<QByteArray> fileContent = targetCMakeFile.fileContents();
-
-        // parse CMake file
-        cmle::ByteArrayFileBuffer listsFileBuffer{fileContent.value_or(QByteArray{})};
-        cmle::CMakeListsFile listsFile{&listsFileBuffer};
-        if (!listsFile.isLoaded()) {
-            qCCritical(cmakeBuildSystemLog).noquote()
-                << "BaseTextEditor cannot be obtained for" << fileToRename.cmakeFile.path()
-                << fileToRename.argumentPosition.Line << int(fileToRename.argumentPosition.Column);
+        if (!fileContent.has_value()) {
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not load cmake lists file" << targetCMakeFile;
             return false;
         }
 
+        // parse CMake file
+        cmle::ByteArrayFileBuffer listsFileBuffer{};
+        cmle::CMakeListsFile listsFile{fileContent.value_or(QByteArray{})};
+        if (!listsFile.isLoaded()) {
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not parse cmake lists file" << targetCMakeFile;
+            return false;
+        }
+
+        auto relOldfilePath = m_filesToBeRenamed.take(newFilePath);
+
         // Rename files
-        const auto relOldFilePath = oldFilePath.canonicalPath().relativePathFrom(
-                    n->filePath().canonicalPath()).cleanPath().toString();
         const auto relNewFilePath = newFilePath.canonicalPath().relativePathFrom(
                     n->filePath().canonicalPath()).cleanPath().toString();
-        listsFile.renameSourceFile(targetName, relOldFilePath, relNewFilePath);
-            qCCritical(cmakeBuildSystemLog).noquote()
-                << "Changes to" << fileToRename.cmakeFile.path() << "could not be saved.";
+
+        if (!listsFile.renameSourceFile(targetName, relOldfilePath, relNewFilePath)) {
+            qCCritical(cmakeBuildSystemLog).noquote() << "Could not rename" << relOldfilePath
+                                                      << "to" << relNewFilePath;
         }
 
         // Write back to file
-        if (listsFile.save()) {
-            targetCMakeFile.writeFileContents(listsFileBuffer.content());
-            return true;
+        BaseTextEditor *editor = qobject_cast<BaseTextEditor *>(
+            Core::EditorManager::openEditor(targetCMakeFile,
+                                            Constants::CMAKE_EDITOR_ID,
+                                            Core::EditorManager::DoNotMakeVisible));
+        if (!editor) {
+            qCCritical(cmakeBuildSystemLog).noquote()
+                    << "BaseTextEditor cannot be obtained for" << targetCMakeFile.path();
+            return false;
+        }
+        editor->document()->setContents(listsFile.write());
+        //editor->editorWidget()->autoIndent();
+        if (!Core::DocumentManager::saveDocument(editor->document())) {
+            qCCritical(cmakeBuildSystemLog).noquote()
+                << "Changes to" << targetCMakeFile.path() << "could not be saved.";
+            return false;
         }
     }
 
-    return false;
+    return true;
 }
 
 FilePaths CMakeBuildSystem::filesGeneratedFrom(const FilePath &sourceFile) const
