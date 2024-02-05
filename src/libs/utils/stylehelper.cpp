@@ -38,6 +38,7 @@ static int range(float x, int min, int max)
 namespace Utils {
 
 static StyleHelper::ToolbarStyle m_toolbarStyle = StyleHelper::defaultToolbarStyle;
+static StyleHelper::ItemActivation m_itemActivation = StyleHelper::ItemActivationSystemDefault;
 // Invalid by default, setBaseColor needs to be called at least once
 static QColor m_baseColor;
 static QColor m_requestedBaseColor;
@@ -92,6 +93,16 @@ void StyleHelper::setToolbarStyle(ToolbarStyle style)
 StyleHelper::ToolbarStyle StyleHelper::toolbarStyle()
 {
     return m_toolbarStyle;
+}
+
+void StyleHelper::setItemActivation(ItemActivation style)
+{
+    m_itemActivation = style;
+}
+
+StyleHelper::ItemActivation StyleHelper::itemActivation()
+{
+    return m_itemActivation;
 }
 
 qreal StyleHelper::sidebarFontSize()

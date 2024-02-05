@@ -40,6 +40,7 @@ namespace Core::Internal {
 const char settingsKeyDpiPolicy[] = "Core/HighDpiScaleFactorRoundingPolicy";
 const char settingsKeyCodecForLocale[] = "General/OverrideCodecForLocale";
 const char settingsKeyToolbarStyle[] = "General/ToolbarStyle";
+const char settingsKeyItemActivation[] = "General/ItemActivation";
 
 static bool defaultShowShortcutsInContextMenu()
 {
@@ -89,6 +90,7 @@ public:
     static QByteArray codecForLocale();
     static void setCodecForLocale(const QByteArray&);
     void fillToolbarStyleBox() const;
+    void fillItemActivationBox() const;
     static void setDpiPolicy(Qt::HighDpiScaleFactorRoundingPolicy policy);
 
     QComboBox *m_languageBox;
@@ -98,6 +100,7 @@ public:
     QPushButton *m_resetWarningsButton;
     QComboBox *m_toolbarStyleBox;
     QComboBox *m_policyComboBox = nullptr;
+    QComboBox *m_itemActivation = nullptr;
 };
 
 GeneralSettingsWidget::GeneralSettingsWidget()
@@ -107,6 +110,7 @@ GeneralSettingsWidget::GeneralSettingsWidget()
     , m_themeChooser(new ThemeChooser)
     , m_resetWarningsButton(new QPushButton)
     , m_toolbarStyleBox(new QComboBox)
+    , m_itemActivation(new QComboBox)
 {
     m_languageBox->setObjectName("languageBox");
     m_languageBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
@@ -125,6 +129,7 @@ GeneralSettingsWidget::GeneralSettingsWidget()
            nullptr));
 
     m_toolbarStyleBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    m_itemActivation->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
     auto resetColorButton = new QPushButton(Tr::tr("Reset"));
     resetColorButton->setToolTip(Tr::tr("Reset to default.", "Color"));
@@ -133,6 +138,7 @@ GeneralSettingsWidget::GeneralSettingsWidget()
     form.addRow({Tr::tr("Color:"), m_colorButton, resetColorButton, st});
     form.addRow({Tr::tr("Theme:"), m_themeChooser});
     form.addRow({Tr::tr("Toolbar style:"), m_toolbarStyleBox, st});
+    form.addRow({Tr::tr("Default item activation:"), m_itemActivation, st});
     form.addRow({Tr::tr("Language:"), m_languageBox, st});
 
     if (StyleHelper::defaultHighDpiScaleFactorRoundingPolicy()
@@ -164,6 +170,7 @@ GeneralSettingsWidget::GeneralSettingsWidget()
     fillLanguageBox();
     fillCodecBox();
     fillToolbarStyleBox();
+    fillItemActivationBox();
 
     m_colorButton->setColor(StyleHelper::requestedBaseColor());
     m_resetWarningsButton->setEnabled(canResetWarnings());
@@ -242,6 +249,12 @@ void GeneralSettingsWidget::apply()
         QStyle *applicationStyle = QApplication::style();
         for (QWidget *widget : QApplication::allWidgets())
             applicationStyle->polish(widget);
+    }
+    if (const auto newStyle = m_itemActivation->currentData().value<StyleHelper::ItemActivation>();
+        newStyle != StyleHelper::itemActivation()) {
+        ICore::settings()->setValueWithDefault(settingsKeyItemActivation, int(newStyle),
+                                               int(StyleHelper::ItemActivationSystemDefault));
+        StyleHelper::setItemActivation(newStyle);
     }
 }
 
@@ -332,6 +345,25 @@ void GeneralSettingsWidget::fillToolbarStyleBox() const
     m_toolbarStyleBox->setCurrentIndex(curId);
 }
 
+StyleHelper::ItemActivation itemActivationFomSettings()
+{
+    if (!ExtensionSystem::PluginManager::instance()) // May happen in tests
+        return StyleHelper::ItemActivationSystemDefault;
+
+    return StyleHelper::ItemActivation(
+        ICore::settings()->value(settingsKeyItemActivation,
+                                 StyleHelper::ItemActivationSystemDefault).toInt());
+}
+
+void GeneralSettingsWidget::fillItemActivationBox() const
+{
+    m_itemActivation->addItem(Tr::tr("<System default>"), StyleHelper::ItemActivationSystemDefault);
+    m_itemActivation->addItem(Tr::tr("Single click"), StyleHelper::ItemActivationSingleClick);
+    m_itemActivation->addItem(Tr::tr("Double click"), StyleHelper::ItemActivationDoubleClick);
+    const int curId = m_itemActivation->findData(itemActivationFomSettings());
+    m_itemActivation->setCurrentIndex(curId);
+}
+
 void GeneralSettingsWidget::setDpiPolicy(Qt::HighDpiScaleFactorRoundingPolicy policy)
 {
     QtcSettings *settings = ICore::settings();
@@ -352,6 +384,11 @@ void GeneralSettingsWidget::setDpiPolicy(Qt::HighDpiScaleFactorRoundingPolicy po
 void GeneralSettings::applyToolbarStyleFromSettings()
 {
     StyleHelper::setToolbarStyle(toolbarStylefromSettings());
+}
+
+void GeneralSettings::applyItemActivationFromSettings()
+{
+    StyleHelper::setItemActivation(itemActivationFomSettings());
 }
 
 // GeneralSettingsPage

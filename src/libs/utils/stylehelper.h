@@ -45,10 +45,18 @@ enum ToolbarStyle {
 };
 constexpr ToolbarStyle defaultToolbarStyle = ToolbarStyleCompact;
 
+enum ItemActivation {
+    ItemActivationSystemDefault,
+    ItemActivationSingleClick,
+    ItemActivationDoubleClick,
+};
+
 // Height of the project explorer navigation bar
 QTCREATOR_UTILS_EXPORT int navigationWidgetHeight();
 QTCREATOR_UTILS_EXPORT void setToolbarStyle(ToolbarStyle style);
 QTCREATOR_UTILS_EXPORT ToolbarStyle toolbarStyle();
+QTCREATOR_UTILS_EXPORT void setItemActivation(ItemActivation style);
+QTCREATOR_UTILS_EXPORT ItemActivation itemActivation();
 QTCREATOR_UTILS_EXPORT qreal sidebarFontSize();
 QTCREATOR_UTILS_EXPORT QPalette sidebarFontPalette(const QPalette &original);
 

@@ -15,6 +15,7 @@ public:
     Utils::BoolAspect showShortcutsInContextMenus{this};
 
     static void applyToolbarStyleFromSettings();
+    static void applyItemActivationFromSettings();
 };
 
 GeneralSettings &generalSettings();

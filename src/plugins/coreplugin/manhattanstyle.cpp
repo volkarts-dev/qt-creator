@@ -118,6 +118,19 @@ static bool isDarkFusionStyle(const QStyle *style)
             && strcmp(style->metaObject()->className(), "QFusionStyle") == 0;
 }
 
+static int styleSingleItemActivation(int styleDefault) {
+    auto style = StyleHelper::itemActivation();
+    switch (style) {
+        case StyleHelper::ItemActivationSystemDefault:
+            break;
+        case StyleHelper::ItemActivationSingleClick:
+            return true;
+        case StyleHelper::ItemActivationDoubleClick:
+            return false;
+    }
+    return styleDefault;
+}
+
 class ManhattanStylePrivate
 {
 public:
@@ -140,6 +153,7 @@ ManhattanStyle::ManhattanStyle(const QString &baseStyleName)
     , d(new ManhattanStylePrivate())
 {
     Core::Internal::GeneralSettings::applyToolbarStyleFromSettings();
+    Core::Internal::GeneralSettings::applyItemActivationFromSettings();
 }
 
 ManhattanStyle::~ManhattanStyle()
@@ -420,6 +434,7 @@ int ManhattanStyle::styleHint(StyleHint hint, const QStyleOption *option, const 
         break;
     case QStyle::SH_ItemView_ActivateItemOnSingleClick:
         // default depends on the style
+        ret = styleSingleItemActivation(ret);
         if (widget) {
             QVariant activationMode = widget->property(activationModeC);
             if (activationMode.isValid())
